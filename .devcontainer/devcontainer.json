@@ -2,7 +2,7 @@
   "name": "SDWIS Translation API",
   "image": "mcr.microsoft.com/devcontainers/javascript-node:22",
   "postCreateCommand": "npm install",
-  "postStartCommand": "DEMO_MODE=true npm start &",
+  "postAttachCommand": "nohup npm start > /tmp/api.log 2>&1 &",
   "forwardPorts": [3000],
   "portsAttributes": {
     "3000": {
