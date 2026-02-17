@@ -20,7 +20,7 @@ const swaggerSpec = swaggerJsdoc({
       version: '0.1.0',
       description: 'DW-SFTIES compatible read-only API backed by SDWIS/STATE data',
     },
-    servers: [{ url: `http://localhost:${PORT}` }],
+    servers: [{ url: '/' }],
   },
   apis: ['./routes/*.js'],
 });
@@ -30,6 +30,9 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 // Routes — facility must be before water-system so "facility" doesn't match :waterSystemId
 app.use('/inventory/water-system/facility', facilityRoutes);
 app.use('/inventory/water-system', waterSystemRoutes);
+
+// Root → Swagger docs
+app.get('/', (req, res) => res.redirect('/api-docs'));
 
 // Health check
 app.get('/health', (req, res) => {
