@@ -13,7 +13,7 @@ You can run the API with demo data directly in your browser using GitHub Codespa
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/SDWIS-Applications/sdwis-translation-api?quickstart=1)
 
 1. Click the button above and wait for the Codespace to finish building (about a minute).
-2. The API server starts automatically. When port 3000 appears in the **Ports** tab, click the globe icon — it opens directly to the interactive Swagger documentation.
+2. The API server starts automatically. When port 3000 appears in the **Ports** tab, click the globe icon — it opens directly to the interactive Swagger documentation. (If your browser blocks the pop-up, allow pop-ups for `github.dev` and click again.)
 3. Try some requests from the Swagger UI:
    - `GET /inventory/water-system` — returns 10 demo water systems
    - `GET /inventory/water-system/XX0010001` — a single water system by PWSID
