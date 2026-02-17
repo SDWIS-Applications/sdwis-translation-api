@@ -6,9 +6,24 @@ The API reads from SDWIS/STATE tables (SQL Server, Oracle, or PostgreSQL replica
 
 A demo mode with bundled synthetic data is included so the API can be evaluated without a database connection.
 
+## Try It Now
+
+You can run the API with demo data directly in your browser using GitHub Codespaces — no local install required.
+
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/SDWIS-Applications/sdwis-translation-api?quickstart=1)
 
-## Quick Start
+1. Click the button above and wait for the Codespace to finish building (about a minute).
+2. The API server starts automatically. When port 3000 appears in the **Ports** tab, click the globe icon to open it in your browser.
+3. Append `/api-docs` to the URL to open the interactive Swagger documentation.
+4. Try some requests from the Swagger UI:
+   - `GET /inventory/water-system` — returns 10 demo water systems
+   - `GET /inventory/water-system/XX0010001` — a single water system by PWSID
+   - `GET /inventory/water-system/facility` — returns 9 demo facilities
+   - `GET /inventory/water-system/facility?facilityTypeCode=WL` — filter to wells only
+   - `GET /health` — shows `{"status":"ok","datasource":"demo"}`
+5. To run the test suite, open the terminal in the Codespace and run `npm test`.
+
+## Quick Start (Local)
 
 ```bash
 git clone https://github.com/SDWIS-Applications/sdwis-translation-api.git
