@@ -1,0 +1,33 @@
+{
+  "name": "sdwis-translation-api",
+  "version": "0.1.0",
+  "description": "DW-SFTIES compatible read-only API backed by SDWIS/STATE data",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "DEMO_MODE=true node --test 'test/**/*.test.js'"
+  },
+  "keywords": [
+    "sdwis",
+    "dw-sfties",
+    "epa",
+    "drinking-water",
+    "sdwis-state",
+    "translation-api"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SDWIS-Applications/sdwis-translation-api"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "mssql": "^12.2.0",
+    "oracledb": "^6.10.0",
+    "pg": "^8.18.0",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "SDWIS Translation API",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:22",
+  "postCreateCommand": "npm install",
+  "postStartCommand": "DEMO_MODE=true npm start &",
+  "forwardPorts": [3000],
+  "portsAttributes": {
+    "3000": {
+      "label": "API",
+      "onAutoForward": "openBrowser"
+    }
+  },
+  "containerEnv": {
+    "DEMO_MODE": "true"
+  }
+}

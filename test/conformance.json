@@ -1,0 +1,60 @@
+{
+  "description": "Conformance configuration — defines which DTOs are implemented and which fields are explicitly excepted. The conformance test validates API responses against the original OpenAPI spec and fails on any field not in the spec (extra) or missing without an exception.",
+  "specPath": "../specs/inventory-openapi.json",
+  "entities": [
+    {
+      "dto": "DWPWaterSystemDTO",
+      "listPath": "/inventory/water-system?pageSize=1",
+      "listCollection": "waterSystems",
+      "itemPath": "/inventory/water-system/XX0010001",
+      "itemKey": "waterSystem",
+      "exceptions": {
+        "fedTotalWholesalePopulation": "no SS equivalent — SF-only wholesale population tracking",
+        "fedDirectWholesalePopulation": "no SS equivalent — SF-only wholesale population tracking",
+        "fedIndirectWholesalePopulation": "no SS equivalent — SF-only wholesale population tracking",
+        "opInd": "not yet mapped — operating period indicator",
+        "opBeginDt": "not yet mapped — operating period begin date",
+        "opEndDt": "not yet mapped — operating period end date",
+        "dmsStagingData": "SF internal — DMS transient staging field",
+        "removeLanId": "no SS equivalent — SF-only remove tracking",
+        "removeDt": "no SS equivalent — SF-only remove tracking",
+        "lastReportedToFedDt": "no SS equivalent — SF federal reporting timestamp",
+        "dwpWaterSystemAnnualOperatingPeriods": "nested array — separate entity, future phase",
+        "geographicAreas": "nested array — separate entity, future phase",
+        "dwpWSServiceArea": "nested object — service area, future phase",
+        "regulatingAgencies": "nested array — future phase",
+        "wsIndicators": "nested array — future phase",
+        "measures": "nested array — future phase",
+        "waterSystemFlowRates": "nested array — future phase",
+        "certifications": "nested array — future phase",
+        "wsServiceLines": "nested array — future phase (LCRR)",
+        "waterSystemServiceConnections": "nested array — Phase 2",
+        "waterSystemGeographicAreas": "nested array — Phase 2",
+        "pocs": "nested array — future phase"
+      }
+    },
+    {
+      "dto": "DWPFacilityDTO",
+      "listPath": "/inventory/water-system/facility?pageSize=1",
+      "listCollection": "facilities",
+      "itemPath": "/inventory/water-system/facility/31001",
+      "itemKey": "facility",
+      "exceptions": {
+        "location": "nested object — DWPFacilityLocationDTO, separate SS columns, future phase",
+        "facilityWell": "nested object — DWPFacilityWellDTO, separate SS columns, future phase",
+        "facilityStorage": "nested object — DWPFacilityStorageDTO, separate SS columns, future phase",
+        "treatmentPlant": "nested object — DWPTreatmentPlantDTO, separate SS columns, future phase",
+        "facilitySamplingPoints": "nested array — separate entity, Phase 3",
+        "pocs": "nested array — legal entity POCs, future phase",
+        "facilityAnnualOperatingPeriods": "nested array — separate entity, future phase",
+        "facilityMeasures": "nested array — future phase",
+        "facilityIndicators": "nested array — future phase",
+        "facilityPumps": "nested array — future phase",
+        "facilityFlowRates": "nested array — future phase",
+        "certifications": "nested array — future phase",
+        "treatmentUnits": "nested array — future phase",
+        "facilityFlows": "nested array — future phase"
+      }
+    }
+  ]
+}
