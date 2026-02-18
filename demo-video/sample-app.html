@@ -152,7 +152,7 @@
               <div>{{ sourceLabel(selectedWs.fedWaterSystemSourceType?.wsSourceCode) }}</div>
             </div>
           </div>
-          <div v-if="selectedWs.notes" class="bg-slate-50 border-t border-slate-200 px-5 py-3 text-sm text-slate-500 italic">
+          <div v-if="selectedWs.notes?.trim()" class="bg-slate-50 border-t border-slate-200 px-5 py-3 text-sm text-slate-500 italic">
             <i class="bi bi-quote not-italic mr-1"></i>{{ selectedWs.notes }}
           </div>
         </div>
@@ -167,7 +167,7 @@
             <div v-if="selectedWs.swPurchasePCT" :style="{ width: selectedWs.swPurchasePCT+'%' }" class="bg-blue-300"></div>
             <div v-if="selectedWs.gwUDIPCT" :style="{ width: selectedWs.gwUDIPCT+'%' }" class="bg-amber-400"></div>
           </div>
-          <div class="flex flex-wrap gap-x-4 gap-y-1">
+          <div v-if="hasSourceData" class="flex flex-wrap gap-x-4 gap-y-1">
             <div v-if="selectedWs.gwPCT" class="flex items-center gap-1.5 text-xs text-slate-500">
               <span class="w-2 h-2 rounded-full bg-emerald-500"></span>Ground {{ selectedWs.gwPCT }}%
             </div>
@@ -184,6 +184,7 @@
               <span class="w-2 h-2 rounded-full bg-amber-400"></span>GW UDI {{ selectedWs.gwUDIPCT }}%
             </div>
           </div>
+          <div v-else class="text-xs text-slate-400 italic">No source data available</div>
         </div>
       </div>
 
@@ -302,7 +303,7 @@
           </div>
         </div>
 
-        <div v-if="selectedFacility.notes" class="bg-slate-50 border-t border-slate-200 px-5 py-3 text-sm text-slate-500 italic">
+        <div v-if="selectedFacility.notes?.trim()" class="bg-slate-50 border-t border-slate-200 px-5 py-3 text-sm text-slate-500 italic">
           <i class="bi bi-quote not-italic mr-1"></i>{{ selectedFacility.notes }}
         </div>
       </div>
@@ -350,6 +351,11 @@ createApp({
   },
 
   computed: {
+    hasSourceData() {
+      if (!this.selectedWs) return false
+      const ws = this.selectedWs
+      return ws.gwPCT || ws.swPCT || ws.gwPurchasePCT || ws.swPurchasePCT || ws.gwUDIPCT
+    },
     filteredSystems() {
       if (!this.searchText) return this.waterSystems.slice(0, 20)
       const q = this.searchText.toLowerCase()
