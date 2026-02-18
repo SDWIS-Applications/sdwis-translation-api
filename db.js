@@ -218,6 +218,7 @@ if (FORCE_DEMO) {
     port: process.env.DB_PORT || 5435,
     database: process.env.DB_NAME || 'dws_prod',
     user: process.env.DB_USER || 'dba',
+    password: process.env.DB_PASSWORD || undefined,
   });
 
   mode = 'postgresql';

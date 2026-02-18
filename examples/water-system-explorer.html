@@ -48,7 +48,7 @@
         <p class="text-white/50 text-sm font-light tracking-wide mt-1">Powered by the SDWIS Translation API</p>
       </div>
       <div class="flex items-center gap-3">
-        <input type="text" v-model="apiUrl" @change="loadWaterSystems" spellcheck="false"
+        <input type="text" v-model="apiUrl" @change="connect" spellcheck="false"
                class="font-mono text-xs bg-slate-50/10 border border-white/10 rounded-md px-3 py-1.5 text-slate-400 w-64 focus:border-sky-400 focus:outline-none backdrop-blur">
         <span class="inline-flex items-center gap-1.5 bg-white/5 border border-white/10 text-cyan-300 text-xs font-medium px-3 py-1.5 rounded-full backdrop-blur-sm">
           <span class="w-1.5 h-1.5 rounded-full animate-pulse-dot" :class="connected ? 'bg-emerald-400' : 'bg-red-400'"></span>
@@ -66,7 +66,7 @@
       <div class="text-[0.68rem] font-semibold uppercase tracking-widest text-slate-400 mb-2">Select Water System</div>
       <div class="relative">
         <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
-        <input type="text" v-model="searchText" @focus="dropdownOpen = true" @input="dropdownOpen = true"
+        <input type="text" v-model="searchText" @focus="dropdownOpen = true; searchWaterSystems()" @input="onSearchInput"
                :placeholder="'Search ' + totalWaterSystems.toLocaleString() + ' water systems by name or ID...'"
                class="w-full pl-9 pr-10 py-3 border-2 border-slate-200 rounded-lg text-sm focus:border-sky-400 focus:ring-2 focus:ring-sky-100 outline-none transition">
         <button v-if="selectedWsId" @click="clearSelection"
@@ -338,7 +338,7 @@ createApp({
     return {
       apiUrl: 'http://localhost:3000',
       connected: false,
-      waterSystems: [],
+      searchResults: [],
       totalWaterSystems: 0,
       selectedWsId: '',
       selectedWs: null,
@@ -347,6 +347,7 @@ createApp({
       selectedFacility: null,
       searchText: '',
       dropdownOpen: false,
+      searchTimer: null,
     }
   },
 
@@ -357,12 +358,7 @@ createApp({
       return ws.gwPCT || ws.swPCT || ws.gwPurchasePCT || ws.swPurchasePCT || ws.gwUDIPCT
     },
     filteredSystems() {
-      if (!this.searchText) return this.waterSystems.slice(0, 20)
-      const q = this.searchText.toLowerCase()
-      return this.waterSystems.filter(ws =>
-        ws.waterSystemId.toLowerCase().includes(q) ||
-        ws.name.toLowerCase().includes(q)
-      ).slice(0, 20)
+      return this.searchResults
     },
   },
 
@@ -377,18 +373,47 @@ createApp({
       return res.json()
     },
 
-    async loadWaterSystems() {
+    async connect() {
       try {
-        const data = await this.api(
-          '/inventory/water-system?pageSize=100&sortColumns=waterSystemId&sortOrders=ASC'
-        )
-        this.waterSystems = data.waterSystems || []
+        const data = await this.api('/inventory/water-system?pageSize=1')
         this.totalWaterSystems = data.resultSummary.totalCount
         this.connected = true
+        this.searchWaterSystems()
       } catch (e) {
         this.connected = false
-        console.error('Failed to load water systems:', e)
+        console.error('Failed to connect:', e)
       }
+    },
+
+    async searchWaterSystems() {
+      try {
+        const q = this.searchText.trim()
+        if (!q) {
+          // No search text — show first 20
+          const data = await this.api('/inventory/water-system?pageSize=20&sortColumns=waterSystemId&sortOrders=ASC')
+          this.searchResults = data.waterSystems || []
+          return
+        }
+        // Search by both ID prefix and name in parallel, merge results
+        const [byId, byName] = await Promise.all([
+          this.api('/inventory/water-system?pageSize=20&sortColumns=waterSystemId&sortOrders=ASC&waterSystemId=' + encodeURIComponent(q)),
+          this.api('/inventory/water-system?pageSize=20&sortColumns=name&sortOrders=ASC&name=' + encodeURIComponent(q)),
+        ])
+        const map = new Map()
+        for (const ws of [...(byId.waterSystems || []), ...(byName.waterSystems || [])]) {
+          map.set(ws.waterSystemId, ws)
+        }
+        this.searchResults = [...map.values()].slice(0, 20)
+      } catch (e) {
+        this.searchResults = []
+        console.error('Search failed:', e)
+      }
+    },
+
+    onSearchInput() {
+      this.dropdownOpen = true
+      clearTimeout(this.searchTimer)
+      this.searchTimer = setTimeout(() => this.searchWaterSystems(), 250)
     },
 
     async loadFacilities(waterSystemId) {
@@ -408,11 +433,21 @@ createApp({
     //  UI helpers
     // ---------------------------------------------------------------
 
-    selectWaterSystem(ws) {
+    async selectWaterSystem(ws) {
       this.selectedWsId = ws.waterSystemId
       this.searchText = ws.waterSystemId + ' — ' + ws.name
       this.dropdownOpen = false
-      this.onWaterSystemChange()
+      // Fetch full record by ID for complete data
+      try {
+        const data = await this.api(`/inventory/water-system/${ws.waterSystemId}`)
+        this.selectedWs = data.waterSystem
+      } catch (e) {
+        this.selectedWs = ws
+      }
+      this.selectedFacility = null
+      this.facilities = []
+      this.totalFacilities = 0
+      await this.loadFacilities(this.selectedWsId)
     },
 
     clearSelection() {
@@ -422,15 +457,7 @@ createApp({
       this.selectedFacility = null
       this.facilities = []
       this.totalFacilities = 0
-    },
-
-    async onWaterSystemChange() {
-      this.selectedFacility = null
-      this.facilities = []
-      this.totalFacilities = 0
-      if (!this.selectedWsId) { this.selectedWs = null; return }
-      this.selectedWs = this.waterSystems.find(ws => ws.waterSystemId === this.selectedWsId)
-      await this.loadFacilities(this.selectedWsId)
+      this.searchWaterSystems()
     },
 
     formatDate(dt) {
@@ -459,7 +486,7 @@ createApp({
   },
 
   mounted() {
-    this.loadWaterSystems()
+    this.connect()
     document.addEventListener('click', (e) => {
       if (!e.target.closest('.selector-card, .relative')) this.dropdownOpen = false
     })
