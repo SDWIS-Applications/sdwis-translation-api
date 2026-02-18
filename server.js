@@ -11,6 +11,13 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
+// CORS — allow browser apps on other origins to call the API
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  next();
+});
+
 // Swagger docs
 const swaggerSpec = swaggerJsdoc({
   definition: {

@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Water System Explorer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { display: ['Outfit', 'sans-serif'], serif: ['Source Serif 4', 'Georgia', 'serif'] },
+          colors: { deep: '#0a1628', navy: '#132743', slate: '#1e3a5f' },
+        }
+      }
+    }
+  </script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Source+Serif+4:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <style>
+    body { font-family: 'Outfit', sans-serif; }
+    .hero-glow-r { position:absolute; top:-50%; right:-20%; width:600px; height:600px; background:radial-gradient(circle,rgba(14,165,233,0.15) 0%,transparent 70%); border-radius:50%; }
+    .hero-glow-l { position:absolute; bottom:-30%; left:-10%; width:400px; height:400px; background:radial-gradient(circle,rgba(52,211,153,0.1) 0%,transparent 70%); border-radius:50%; }
+    .stat-gradient { background:linear-gradient(135deg,#132743,#0ea5e9); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .source-bar { height:10px; border-radius:5px; overflow:hidden; display:flex; }
+    .source-bar > div { height:100%; transition:width 0.6s cubic-bezier(0.4,0,0.2,1); }
+    @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.4} }
+    .animate-pulse-dot { animation: pulse-dot 2s ease-in-out infinite; }
+    .slide-enter-active { animation: slideDown 0.35s ease-out; }
+    .slide-leave-active { animation: slideDown 0.25s ease-in reverse; }
+    @keyframes slideDown { from{opacity:0;transform:translateY(-12px)} to{opacity:1;transform:translateY(0)} }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+
+<div id="app">
+
+  <!-- Hero -->
+  <header class="relative overflow-hidden bg-gradient-to-br from-deep via-navy to-slate px-6 pt-10 pb-14">
+    <div class="hero-glow-r"></div>
+    <div class="hero-glow-l"></div>
+    <div class="max-w-5xl mx-auto relative flex justify-between items-start">
+      <div>
+        <h1 class="font-serif font-semibold text-3xl text-white tracking-tight">
+          Water System <span class="text-sky-400">Explorer</span>
+        </h1>
+        <p class="text-white/50 text-sm font-light tracking-wide mt-1">Powered by the SDWIS Translation API</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <input type="text" v-model="apiUrl" @change="loadWaterSystems" spellcheck="false"
+               class="font-mono text-xs bg-slate-50/10 border border-white/10 rounded-md px-3 py-1.5 text-slate-400 w-64 focus:border-sky-400 focus:outline-none backdrop-blur">
+        <span class="inline-flex items-center gap-1.5 bg-white/5 border border-white/10 text-cyan-300 text-xs font-medium px-3 py-1.5 rounded-full backdrop-blur-sm">
+          <span class="w-1.5 h-1.5 rounded-full animate-pulse-dot" :class="connected ? 'bg-emerald-400' : 'bg-red-400'"></span>
+          {{ connected ? 'Connected' : 'Disconnected' }}
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <div class="max-w-5xl mx-auto px-6 -mt-6 relative z-10">
+
+    <!-- Search -->
+    <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5 mb-6 relative">
+      <div class="text-[0.68rem] font-semibold uppercase tracking-widest text-slate-400 mb-2">Select Water System</div>
+      <div class="relative">
+        <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+        <input type="text" v-model="searchText" @focus="dropdownOpen = true" @input="dropdownOpen = true"
+               :placeholder="'Search ' + totalWaterSystems.toLocaleString() + ' water systems by name or ID...'"
+               class="w-full pl-9 pr-10 py-3 border-2 border-slate-200 rounded-lg text-sm focus:border-sky-400 focus:ring-2 focus:ring-sky-100 outline-none transition">
+        <button v-if="selectedWsId" @click="clearSelection"
+                class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition">
+          <i class="bi bi-x-circle"></i>
+        </button>
+      </div>
+      <!-- Dropdown -->
+      <div v-if="dropdownOpen && filteredSystems.length"
+           class="absolute left-0 right-0 top-full bg-white border border-slate-200 border-t-0 rounded-b-xl shadow-lg max-h-80 overflow-y-auto z-50">
+        <div v-for="ws in filteredSystems" :key="ws.waterSystemId" @mousedown.prevent="selectWaterSystem(ws)"
+             class="flex items-center px-5 py-3 cursor-pointer hover:bg-sky-50 border-b border-slate-50 last:border-0 transition">
+          <span class="font-mono text-sky-500 text-sm font-semibold">{{ ws.waterSystemId }}</span>
+          <span class="ml-3 text-sm">{{ ws.name }}</span>
+          <span v-if="ws.fedPopulation" class="ml-auto text-xs text-slate-400">pop: {{ ws.fedPopulation.toLocaleString() }}</span>
+        </div>
+      </div>
+      <div v-if="dropdownOpen && searchText && !filteredSystems.length"
+           class="absolute left-0 right-0 top-full bg-white border border-slate-200 border-t-0 rounded-b-xl shadow-lg z-50">
+        <div class="px-5 py-3 text-sm text-slate-400">No matches</div>
+      </div>
+    </div>
+
+    <!-- Water System Detail -->
+    <transition name="slide">
+    <div v-if="selectedWs">
+
+      <!-- Stats -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5 text-center hover:-translate-y-0.5 hover:shadow-md transition">
+          <div class="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 inline-flex items-center justify-center mb-2"><i class="bi bi-people-fill"></i></div>
+          <div class="text-3xl font-extrabold tracking-tight stat-gradient">{{ (selectedWs.fedPopulation || 0).toLocaleString() }}</div>
+          <div class="text-[0.68rem] font-semibold uppercase tracking-widest text-slate-400 mt-1">Population</div>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5 text-center hover:-translate-y-0.5 hover:shadow-md transition">
+          <div class="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 inline-flex items-center justify-center mb-2"><i class="bi bi-geo-alt-fill"></i></div>
+          <div class="text-3xl font-extrabold tracking-tight stat-gradient">{{ totalFacilities }}</div>
+          <div class="text-[0.68rem] font-semibold uppercase tracking-widest text-slate-400 mt-1">Facilities</div>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5 text-center hover:-translate-y-0.5 hover:shadow-md transition">
+          <div class="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 inline-flex items-center justify-center mb-2"><i class="bi bi-calendar3"></i></div>
+          <div class="text-3xl font-extrabold tracking-tight stat-gradient">{{ selectedWs.daysServingCount || '—' }}</div>
+          <div class="text-[0.68rem] font-semibold uppercase tracking-widest text-slate-400 mt-1">Days / Year</div>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5 text-center hover:-translate-y-0.5 hover:shadow-md transition">
+          <div class="w-9 h-9 rounded-lg inline-flex items-center justify-center mb-2"
+               :class="selectedWs.waterSystemStatus?.wsStatusCode === 'A' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'">
+            <i class="bi" :class="selectedWs.waterSystemStatus?.wsStatusCode === 'A' ? 'bi-check-circle-fill' : 'bi-x-circle-fill'"></i>
+          </div>
+          <div class="text-lg font-bold" :class="selectedWs.waterSystemStatus?.wsStatusCode === 'A' ? 'text-emerald-700' : 'text-red-700'">
+            {{ selectedWs.waterSystemStatus?.wsStatusCode === 'A' ? 'Active' : 'Inactive' }}
+          </div>
+          <div class="text-[0.68rem] font-semibold uppercase tracking-widest text-slate-400 mt-1">Status</div>
+        </div>
+      </div>
+
+      <!-- Info + Source -->
+      <div class="grid md:grid-cols-3 gap-4 mb-4">
+        <div class="md:col-span-2 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+          <div class="grid grid-cols-2 md:grid-cols-3 gap-4 p-5">
+            <div>
+              <div class="text-[0.65rem] font-semibold uppercase tracking-widest text-slate-400 mb-0.5">PWSID</div>
+              <div class="font-mono font-semibold text-navy">{{ selectedWs.waterSystemId }}</div>
+            </div>
+            <div>
+              <div class="text-[0.65rem] font-semibold uppercase tracking-widest text-slate-400 mb-0.5">Name</div>
+              <div class="font-medium">{{ selectedWs.name }}</div>
+            </div>
+            <div>
+              <div class="text-[0.65rem] font-semibold uppercase tracking-widest text-slate-400 mb-0.5">Local Name</div>
+              <div>{{ selectedWs.localName || '—' }}</div>
+            </div>
+            <div>
+              <div class="text-[0.65rem] font-semibold uppercase tracking-widest text-slate-400 mb-0.5">Owner</div>
+              <div>{{ ownerTypeLabel(selectedWs.ownerType?.wsOwnerTypeCode) }}</div>
+            </div>
+            <div>
+              <div class="text-[0.65rem] font-semibold uppercase tracking-widest text-slate-400 mb-0.5">System Type</div>
+              <div>{{ wsTypeLabel(selectedWs.fedWaterSystemType?.wsTypeCode) }}</div>
+            </div>
+            <div>
+              <div class="text-[0.65rem] font-semibold uppercase tracking-widest text-slate-400 mb-0.5">Primary Source</div>
+              <div>{{ sourceLabel(selectedWs.fedWaterSystemSourceType?.wsSourceCode) }}</div>
+            </div>
+          </div>
+          <div v-if="selectedWs.notes" class="bg-slate-50 border-t border-slate-200 px-5 py-3 text-sm text-slate-500 italic">
+            <i class="bi bi-quote not-italic mr-1"></i>{{ selectedWs.notes }}
+          </div>
+        </div>
+
+        <!-- Source mix -->
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
+          <div class="text-[0.68rem] font-semibold uppercase tracking-widest text-slate-400 mb-3">Water Source</div>
+          <div class="source-bar bg-slate-200 mb-3">
+            <div v-if="selectedWs.gwPCT" :style="{ width: selectedWs.gwPCT+'%' }" class="bg-emerald-500"></div>
+            <div v-if="selectedWs.swPCT" :style="{ width: selectedWs.swPCT+'%' }" class="bg-blue-500"></div>
+            <div v-if="selectedWs.gwPurchasePCT" :style="{ width: selectedWs.gwPurchasePCT+'%' }" class="bg-emerald-300"></div>
+            <div v-if="selectedWs.swPurchasePCT" :style="{ width: selectedWs.swPurchasePCT+'%' }" class="bg-blue-300"></div>
+            <div v-if="selectedWs.gwUDIPCT" :style="{ width: selectedWs.gwUDIPCT+'%' }" class="bg-amber-400"></div>
+          </div>
+          <div class="flex flex-wrap gap-x-4 gap-y-1">
+            <div v-if="selectedWs.gwPCT" class="flex items-center gap-1.5 text-xs text-slate-500">
+              <span class="w-2 h-2 rounded-full bg-emerald-500"></span>Ground {{ selectedWs.gwPCT }}%
+            </div>
+            <div v-if="selectedWs.swPCT" class="flex items-center gap-1.5 text-xs text-slate-500">
+              <span class="w-2 h-2 rounded-full bg-blue-500"></span>Surface {{ selectedWs.swPCT }}%
+            </div>
+            <div v-if="selectedWs.gwPurchasePCT" class="flex items-center gap-1.5 text-xs text-slate-500">
+              <span class="w-2 h-2 rounded-full bg-emerald-300"></span>GW Purchased {{ selectedWs.gwPurchasePCT }}%
+            </div>
+            <div v-if="selectedWs.swPurchasePCT" class="flex items-center gap-1.5 text-xs text-slate-500">
+              <span class="w-2 h-2 rounded-full bg-blue-300"></span>SW Purchased {{ selectedWs.swPurchasePCT }}%
+            </div>
+            <div v-if="selectedWs.gwUDIPCT" class="flex items-center gap-1.5 text-xs text-slate-500">
+              <span class="w-2 h-2 rounded-full bg-amber-400"></span>GW UDI {{ selectedWs.gwUDIPCT }}%
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Facilities Table -->
+      <div v-if="facilities.length" class="mb-4">
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="text-[0.78rem] font-bold uppercase tracking-widest text-slate-400">
+            <i class="bi bi-geo-alt mr-1"></i>Facilities
+          </h2>
+          <span class="text-[0.7rem] font-semibold text-slate-400 bg-slate-200 px-2.5 py-0.5 rounded-full">{{ totalFacilities }} total</span>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+          <div class="max-h-96 overflow-y-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b-2 border-slate-200">
+                  <th class="text-[0.65rem] font-bold uppercase tracking-widest text-slate-400 px-4 py-3 text-left sticky top-0 bg-white">ID</th>
+                  <th class="text-[0.65rem] font-bold uppercase tracking-widest text-slate-400 px-4 py-3 text-left sticky top-0 bg-white">Name</th>
+                  <th class="text-[0.65rem] font-bold uppercase tracking-widest text-slate-400 px-4 py-3 text-left sticky top-0 bg-white">Type</th>
+                  <th class="text-[0.65rem] font-bold uppercase tracking-widest text-slate-400 px-4 py-3 text-left sticky top-0 bg-white">Water</th>
+                  <th class="text-[0.65rem] font-bold uppercase tracking-widest text-slate-400 px-4 py-3 text-left sticky top-0 bg-white">Source</th>
+                  <th class="text-[0.65rem] font-bold uppercase tracking-widest text-slate-400 px-4 py-3 text-left sticky top-0 bg-white">Status</th>
+                  <th class="text-[0.65rem] font-bold uppercase tracking-widest text-slate-400 px-4 py-3 text-left sticky top-0 bg-white">Built</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="f in facilities" :key="f.facilityId"
+                    @click="selectedFacility = selectedFacility?.facilityId === f.facilityId ? null : f"
+                    class="cursor-pointer border-b border-slate-50 transition"
+                    :class="selectedFacility?.facilityId === f.facilityId ? 'bg-sky-50' : 'hover:bg-sky-50/50'">
+                  <td class="px-4 py-3 font-mono text-sm font-semibold">{{ f.paAssignedId || f.facilityId }}</td>
+                  <td class="px-4 py-3">{{ f.name }}</td>
+                  <td class="px-4 py-3">
+                    <span class="inline-block px-2 py-0.5 rounded text-xs font-semibold"
+                          :class="{
+                            'bg-emerald-100 text-emerald-800': f.facilityType?.facilityTypeCode === 'WL',
+                            'bg-blue-100 text-blue-800': f.facilityType?.facilityTypeCode === 'IN',
+                            'bg-violet-100 text-violet-800': f.facilityType?.facilityTypeCode === 'TP',
+                            'bg-orange-100 text-orange-800': f.facilityType?.facilityTypeCode === 'ST',
+                            'bg-slate-100 text-slate-600': f.facilityType?.facilityTypeCode === 'DS',
+                          }">{{ facilityTypeLabel(f.facilityType?.facilityTypeCode) }}</span>
+                  </td>
+                  <td class="px-4 py-3 text-slate-500">{{ waterTypeLabel(f.waterType?.facilityWaterTypeCode) }}</td>
+                  <td class="px-4 py-3">
+                    <i v-if="f.srcInd==='Y'" class="bi bi-check-circle-fill text-emerald-500"></i>
+                    <i v-else class="bi bi-dash text-slate-300"></i>
+                  </td>
+                  <td class="px-4 py-3">
+                    <span class="text-xs font-semibold px-2 py-0.5 rounded-full"
+                          :class="f.facilityStatus?.facilityStatusCode === 'A' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'">
+                      {{ f.facilityStatus?.facilityStatusCode === 'A' ? 'Active' : 'Inactive' }}
+                    </span>
+                  </td>
+                  <td class="px-4 py-3 text-slate-400">{{ formatDate(f.constructedDt) || '—' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Facility Detail -->
+      <transition name="slide">
+      <div v-if="selectedFacility" class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden border-l-4 border-l-sky-400 mb-6">
+        <div class="flex justify-between items-start p-5 border-b border-slate-200">
+          <div>
+            <div class="font-serif font-semibold text-xl text-navy">{{ selectedFacility.name }}</div>
+            <div class="flex items-center gap-2 mt-1">
+              <span class="inline-block px-2 py-0.5 rounded text-xs font-semibold"
+                    :class="{
+                      'bg-emerald-100 text-emerald-800': selectedFacility.facilityType?.facilityTypeCode === 'WL',
+                      'bg-blue-100 text-blue-800': selectedFacility.facilityType?.facilityTypeCode === 'IN',
+                      'bg-violet-100 text-violet-800': selectedFacility.facilityType?.facilityTypeCode === 'TP',
+                      'bg-orange-100 text-orange-800': selectedFacility.facilityType?.facilityTypeCode === 'ST',
+                      'bg-slate-100 text-slate-600': selectedFacility.facilityType?.facilityTypeCode === 'DS',
+                    }">{{ facilityTypeLabel(selectedFacility.facilityType?.facilityTypeCode) }}</span>
+              <span class="text-xs font-semibold px-2 py-0.5 rounded-full"
+                    :class="selectedFacility.facilityStatus?.facilityStatusCode === 'A' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'">
+                {{ selectedFacility.facilityStatus?.facilityStatusCode === 'A' ? 'Active' : 'Inactive' }}
+              </span>
+            </div>
+          </div>
+          <button @click="selectedFacility = null"
+                  class="w-8 h-8 flex items-center justify-center rounded-md border border-slate-200 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition">
+            <i class="bi bi-x"></i>
+          </button>
+        </div>
+
+        <div class="grid md:grid-cols-3 gap-6 p-5">
+          <div>
+            <div class="text-[0.65rem] font-bold uppercase tracking-widest text-sky-500 mb-3 pb-1 border-b border-slate-200">Identification</div>
+            <div class="grid grid-cols-2 gap-3">
+              <div><div class="text-[0.63rem] font-semibold uppercase tracking-wide text-slate-400">Facility ID</div><span class="font-mono text-sm">{{ selectedFacility.facilityId }}</span></div>
+              <div><div class="text-[0.63rem] font-semibold uppercase tracking-wide text-slate-400">PA Assigned</div><span class="font-mono text-sm">{{ selectedFacility.paAssignedId || '—' }}</span></div>
+              <div><div class="text-[0.63rem] font-semibold uppercase tracking-wide text-slate-400">Federal ID</div><span class="text-sm">{{ selectedFacility.fedFacilityId || '—' }}</span></div>
+              <div><div class="text-[0.63rem] font-semibold uppercase tracking-wide text-slate-400">Local Name</div><span class="text-sm">{{ selectedFacility.localName || '—' }}</span></div>
+            </div>
+          </div>
+          <div>
+            <div class="text-[0.65rem] font-bold uppercase tracking-widest text-sky-500 mb-3 pb-1 border-b border-slate-200">Classification</div>
+            <div class="grid grid-cols-2 gap-3">
+              <div><div class="text-[0.63rem] font-semibold uppercase tracking-wide text-slate-400">Type</div><span class="text-sm">{{ facilityTypeLabel(selectedFacility.facilityType?.facilityTypeCode) }}</span></div>
+              <div><div class="text-[0.63rem] font-semibold uppercase tracking-wide text-slate-400">Water Type</div><span class="text-sm">{{ waterTypeLabel(selectedFacility.waterType?.facilityWaterTypeCode) }}</span></div>
+              <div><div class="text-[0.63rem] font-semibold uppercase tracking-wide text-slate-400">Is Source</div><span class="text-sm">{{ selectedFacility.srcInd === 'Y' ? 'Yes' : 'No' }}</span></div>
+              <div><div class="text-[0.63rem] font-semibold uppercase tracking-wide text-slate-400">Filtration</div><span class="text-sm">{{ filtrationLabel(selectedFacility.facilityFiltration?.facilityFiltrationCode) }}</span></div>
+            </div>
+          </div>
+          <div>
+            <div class="text-[0.65rem] font-bold uppercase tracking-widest text-sky-500 mb-3 pb-1 border-b border-slate-200">Dates</div>
+            <div class="grid grid-cols-2 gap-3">
+              <div><div class="text-[0.63rem] font-semibold uppercase tracking-wide text-slate-400">Constructed</div><span class="text-sm">{{ formatDate(selectedFacility.constructedDt) || '—' }}</span></div>
+              <div><div class="text-[0.63rem] font-semibold uppercase tracking-wide text-slate-400">Maintained</div><span class="text-sm">{{ formatDate(selectedFacility.maintenanceDt) || '—' }}</span></div>
+              <div><div class="text-[0.63rem] font-semibold uppercase tracking-wide text-slate-400">Status Date</div><span class="text-sm">{{ formatDate(selectedFacility.facilityStatusDt) || '—' }}</span></div>
+              <div><div class="text-[0.63rem] font-semibold uppercase tracking-wide text-slate-400">Updated</div><span class="text-sm">{{ formatDate(selectedFacility.updateDt) || '—' }}</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="selectedFacility.notes" class="bg-slate-50 border-t border-slate-200 px-5 py-3 text-sm text-slate-500 italic">
+          <i class="bi bi-quote not-italic mr-1"></i>{{ selectedFacility.notes }}
+        </div>
+      </div>
+      </transition>
+
+    </div>
+    </transition>
+
+    <!-- Empty state -->
+    <div v-if="!selectedWs && connected" class="text-center py-16">
+      <i class="bi bi-droplet text-5xl text-slate-200"></i>
+      <div class="mt-2 text-slate-400">Select a water system to explore</div>
+    </div>
+
+    <!-- Footer -->
+    <div class="text-center py-6 text-xs text-slate-400">
+      Built with
+      <a href="https://vuejs.org" target="_blank" class="text-sky-500 hover:underline">Vue.js</a> &
+      <a href="https://tailwindcss.com" target="_blank" class="text-sky-500 hover:underline">Tailwind CSS</a>
+      — Data from the
+      <a href="https://github.com/SDWIS-Applications/sdwis-translation-api" target="_blank" class="text-sky-500 hover:underline">SDWIS Translation API</a>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const { createApp } = Vue
+
+createApp({
+  data() {
+    return {
+      apiUrl: 'http://localhost:3000',
+      connected: false,
+      waterSystems: [],
+      totalWaterSystems: 0,
+      selectedWsId: '',
+      selectedWs: null,
+      facilities: [],
+      totalFacilities: 0,
+      selectedFacility: null,
+      searchText: '',
+      dropdownOpen: false,
+    }
+  },
+
+  computed: {
+    filteredSystems() {
+      if (!this.searchText) return this.waterSystems.slice(0, 20)
+      const q = this.searchText.toLowerCase()
+      return this.waterSystems.filter(ws =>
+        ws.waterSystemId.toLowerCase().includes(q) ||
+        ws.name.toLowerCase().includes(q)
+      ).slice(0, 20)
+    },
+  },
+
+  methods: {
+    // ---------------------------------------------------------------
+    //  API calls — all interaction with the Translation API is here
+    // ---------------------------------------------------------------
+
+    async api(path) {
+      const res = await fetch(this.apiUrl + path)
+      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
+      return res.json()
+    },
+
+    async loadWaterSystems() {
+      try {
+        const data = await this.api(
+          '/inventory/water-system?pageSize=100&sortColumns=waterSystemId&sortOrders=ASC'
+        )
+        this.waterSystems = data.waterSystems || []
+        this.totalWaterSystems = data.resultSummary.totalCount
+        this.connected = true
+      } catch (e) {
+        this.connected = false
+        console.error('Failed to load water systems:', e)
+      }
+    },
+
+    async loadFacilities(waterSystemId) {
+      try {
+        const data = await this.api(
+          `/inventory/water-system/facility?waterSystemId=${waterSystemId}&pageSize=100&sortColumns=name&sortOrders=ASC`
+        )
+        this.facilities = data.facilities || []
+        this.totalFacilities = data.resultSummary.totalCount
+      } catch (e) {
+        this.facilities = []
+        console.error('Failed to load facilities:', e)
+      }
+    },
+
+    // ---------------------------------------------------------------
+    //  UI helpers
+    // ---------------------------------------------------------------
+
+    selectWaterSystem(ws) {
+      this.selectedWsId = ws.waterSystemId
+      this.searchText = ws.waterSystemId + ' — ' + ws.name
+      this.dropdownOpen = false
+      this.onWaterSystemChange()
+    },
+
+    clearSelection() {
+      this.selectedWsId = ''
+      this.searchText = ''
+      this.selectedWs = null
+      this.selectedFacility = null
+      this.facilities = []
+      this.totalFacilities = 0
+    },
+
+    async onWaterSystemChange() {
+      this.selectedFacility = null
+      this.facilities = []
+      this.totalFacilities = 0
+      if (!this.selectedWsId) { this.selectedWs = null; return }
+      this.selectedWs = this.waterSystems.find(ws => ws.waterSystemId === this.selectedWsId)
+      await this.loadFacilities(this.selectedWsId)
+    },
+
+    formatDate(dt) {
+      if (!dt) return null
+      return dt.split('T')[0]
+    },
+
+    ownerTypeLabel(c) {
+      return { F:'Federal', S:'State', L:'Local Government', P:'Private', M:'Mixed' }[c] || c || '—'
+    },
+    wsTypeLabel(c) {
+      return { C:'Community', NTNC:'Non-Transient Non-Community', NC:'Non-Community Transient' }[c] || c || '—'
+    },
+    sourceLabel(c) {
+      return { GW:'Ground Water', SW:'Surface Water', GWP:'GW Purchased', SWP:'SW Purchased', GU:'GW Under Direct Influence' }[c] || c || '—'
+    },
+    facilityTypeLabel(c) {
+      return { WL:'Well', IN:'Intake', TP:'Treatment Plant', ST:'Storage', DS:'Distribution', SP:'Sample Point', CC:'Connection' }[c] || c || '—'
+    },
+    waterTypeLabel(c) {
+      return { GW:'Ground Water', SW:'Surface Water', GU:'GW Under Influence' }[c] || c || '—'
+    },
+    filtrationLabel(c) {
+      return { C:'Conventional', D:'Direct', M:'Membrane', S:'Slow Sand', N:'None' }[c] || c || '—'
+    },
+  },
+
+  mounted() {
+    this.loadWaterSystems()
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.selector-card, .relative')) this.dropdownOpen = false
+    })
+  },
+}).mount('#app')
+</script>
+
+</body>
+</html>
