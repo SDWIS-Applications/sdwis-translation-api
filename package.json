@@ -4,8 +4,8 @@
   "description": "DW-SFTIES compatible read-only API backed by SDWIS/STATE data",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node --watch server.js",
+    "start": "node --no-deprecation server.js",
+    "dev": "node --no-deprecation --watch server.js",
     "test": "DEMO_MODE=true node --test 'test/**/*.test.js'"
   },
   "keywords": [
